@@ -453,9 +453,6 @@ static struct core_dev_map *init_core_dev_map(struct device *dev,
 	struct core_dev_map *tbl;
 	int ret;
 
-	if (!of_node)
-		of_node = dev->of_node;
-
 	if (!of_find_property(of_node, prop_name, &len))
 		return NULL;
 	len /= sizeof(data);
@@ -493,7 +490,7 @@ static struct memlat_node *register_common(struct device *dev,
 					   struct memlat_hwmon *hw)
 {
 	struct memlat_node *node;
-	struct device_node *of_child;
+	struct device_node *of_node = dev->of_node;
 
 	if (!hw->dev && !hw->of_node)
 		return ERR_PTR(-EINVAL);
