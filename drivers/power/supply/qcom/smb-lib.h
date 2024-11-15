@@ -310,6 +310,13 @@ struct smb_charger {
 	struct work_struct	legacy_detection_work;
 	struct delayed_work	uusb_otg_work;
 	struct delayed_work	bb_removal_work;
+#ifdef CONFIG_MACH_ASUS_SDM660
+	struct delayed_work	asus_chg_flow_work;
+	struct delayed_work	asus_adapter_adc_work;
+	struct delayed_work	asus_min_monitor_work;
+	struct delayed_work	asus_batt_RTC_work;
+	struct iio_channel	*gpio12_vadc_chan;
+#endif
 
 	/* cached status */
 	int			voltage_min_uv;
@@ -379,6 +386,13 @@ struct smb_charger {
 
 	int			die_health;
 };
+
+#ifdef CONFIG_MACH_ASUS_SDM660
+struct gpio_control {
+	u32 ADC_SW_EN;
+	u32 ADCPWREN_PMI_GP1;
+};
+#endif
 
 int smblib_read(struct smb_charger *chg, u16 addr, u8 *val);
 int smblib_masked_write(struct smb_charger *chg, u16 addr, u8 mask, u8 val);
