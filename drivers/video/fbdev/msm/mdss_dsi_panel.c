@@ -42,6 +42,22 @@ extern bool shutdown_flag;
 DEFINE_LED_TRIGGER(bl_led_trigger);
 #endif
 
+#ifdef CONFIG_FB_MSM_MDSS_CUSTOM_FRAMERATE
+unsigned int refresh_rate_cus = CONFIG_FB_MSM_MDSS_DEFAULT_FRAMERATE;
+
+static int __init read_refresh_rate_cmd(char *s)
+{
+	if (s)
+		refresh_rate_cus = simple_strtoul(s, NULL, 0);
+	
+	if (refresh_rate_cus < 48 || refresh_rate_cus > 72)
+		refresh_rate_cus = CONFIG_FB_MSM_MDSS_DEFAULT_FRAMERATE;
+	
+	return 1;
+}
+__setup("refresh.rate=", read_refresh_rate_cmd);
+#endif
+
 void mdss_dsi_panel_pwm_cfg(struct mdss_dsi_ctrl_pdata *ctrl)
 {
 	if (ctrl->pwm_pmi)
