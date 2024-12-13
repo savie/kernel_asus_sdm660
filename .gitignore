@@ -42,6 +42,7 @@
 *.tab.[ch]
 *.tar
 *.xz
+*.zip*
 Module.symvers
 modules.builtin
 
@@ -114,7 +115,9 @@ GTAGS
 # id-utils files
 ID
 
-*.orig
+*.bak*
+*.orig*
+*.rej*
 *~
 \#*#
 
@@ -137,7 +140,16 @@ all.config
 kernel/configs/android-*.cfg
 
 # vendor device tree directories
-arch/arm64/boot/dts/vendor/
+!arch/arm64/boot/dts/vendor/
 
 # Tech package directories
-techpack/
+!techpack/
+
+# Out directory
+out
+
+# Build/Regenerate Scripts
+*.sh
+
+# KernelSU directories 
+KernelSU
