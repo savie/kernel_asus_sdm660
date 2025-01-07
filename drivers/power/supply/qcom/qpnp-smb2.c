@@ -20,6 +20,14 @@
 #include "smb-lib.h"
 #include "storm-watch.h"
 #include <linux/pmic-voter.h>
+#ifdef CONFIG_MACH_ASUS_SDM660
+#include <linux/of_gpio.h>
+#include <linux/pm_wakeup.h>
+#include <linux/uaccess.h>
+#include <linux/proc_fs.h>
+#include <asm-generic/errno-base.h>
+#include <linux/iio/consumer.h>
+#endif
 
 #define SMB2_DEFAULT_WPWR_UW	8000000
 
@@ -172,9 +180,19 @@ struct smb2 {
 	bool			bad_part;
 };
 
+#ifdef CONFIG_MACH_ASUS_SDM660
+struct smb_charger *smbchg_dev;
+struct timespec last_jeita_time;
+struct wakeup_source *asus_chg_lock;
+extern void smblib_asus_monitor_start(struct smb_charger *chg, int time);
+extern bool asus_get_prop_usb_present(struct smb_charger *chg);
+extern void asus_smblib_stay_awake(struct smb_charger *chg);
+extern void asus_smblib_relax(struct smb_charger *chg);
+#endif
+
 static int __debug_mask;
 
-static int __weak_chg_icl_ua = 500000;
+static int __weak_chg_icl_ua = 900000;
 static ssize_t weak_chg_icl_ua_show(struct device *dev, struct device_attribute
 				     *attr, char *buf)
 {
@@ -351,6 +369,11 @@ static int smb2_parse_dt(struct smb2 *chip)
 			return rc;
 		}
 	}
+
+#ifdef CONFIG_MACH_ASUS_SDM660
+	if (of_find_property(node, "qcom,chg-alert-vadc", NULL))
+		dev_err(chg->dev, "get chg_alert vadc good rc = %d\n", rc);
+#endif
 
 	of_property_read_u32(node, "qcom,float-option", &chip->dt.float_option);
 	if (chip->dt.float_option < 0 || chip->dt.float_option > 4) {
@@ -1152,7 +1175,7 @@ static int smb2_batt_get_prop(struct power_supply *psy,
 					      FG_ESR_VOTER);
 		break;
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
-		val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
+		val->intval = POWER_SUPPLY_TECHNOLOGY_LIPO;
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_DONE:
 		rc = smblib_get_prop_batt_charge_done(chg, val);
@@ -1317,6 +1340,8 @@ static int smb2_batt_prop_is_writeable(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_STEP_CHARGING_ENABLED:
 	case POWER_SUPPLY_PROP_SW_JEITA_ENABLED:
 	case POWER_SUPPLY_PROP_DIE_HEALTH:
+	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
+	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX:
 		return 1;
 	default:
 		break;
@@ -2448,6 +2473,9 @@ static int smb2_probe(struct platform_device *pdev)
 	int rc = 0;
 	union power_supply_propval val;
 	int usb_present, batt_present, batt_health, batt_charge_type;
+#ifdef CONFIG_MACH_ASUS_SDM660
+	u8 HVDVP_reg;
+#endif
 
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
@@ -2464,6 +2492,12 @@ static int smb2_probe(struct platform_device *pdev)
 	chg->die_health = -EINVAL;
 	chg->name = "PMI";
 	chg->audio_headset_drp_wait_ms = &__audio_headset_drp_wait_ms;
+
+#ifdef CONFIG_MACH_ASUS_SDM660
+	asus_chg_lock = wakeup_source_register(NULL, "asus_chg_lock");
+
+	smbchg_dev = chg;
+#endif
 
 	chg->regmap = dev_get_regmap(chg->dev->parent, NULL);
 	if (!chg->regmap) {
@@ -2616,6 +2650,16 @@ static int smb2_probe(struct platform_device *pdev)
 
 	device_init_wakeup(chg->dev, true);
 
+#ifdef CONFIG_MACH_ASUS_SDM660
+	rc = smblib_read(smbchg_dev, USBIN_OPTIONS_1_CFG_REG, &HVDVP_reg);
+	rc = smblib_masked_write(smbchg_dev, USBIN_OPTIONS_1_CFG_REG,
+					HVDCP_EN_BIT, 0x0);
+	rc = smblib_read(smbchg_dev, USBIN_OPTIONS_1_CFG_REG, &HVDVP_reg);
+
+	if (rc < 0)
+		pr_err("%s: Failed to set USBIN_OPTIONS_1_CFG_REG\n", __func__);
+#endif
+
 	pr_info("QPNP SMB2 probed successfully usb:present=%d type=%d batt:present = %d health = %d charge = %d\n",
 		usb_present, chg->real_charger_type,
 		batt_present, batt_health, batt_charge_type);
@@ -2643,6 +2687,36 @@ cleanup:
 	platform_set_drvdata(pdev, NULL);
 	return rc;
 }
+
+#ifdef CONFIG_MACH_ASUS_SDM660
+#define JEITA_MINIMUM_INTERVAL (30)
+
+static int smb2_resume(struct device *dev)
+{
+	struct timespec mtNow;
+	int nextJEITAinterval;
+
+	if (!asus_get_prop_usb_present(smbchg_dev))
+		return 0;
+
+	asus_smblib_stay_awake(smbchg_dev);
+	mtNow = current_kernel_time();
+
+	/* BSP Austin_Tseng: if next JEITA time less than 30s,
+	 * do JEITA (next JEITA time = last JEITA time + 60s)
+	 */
+	nextJEITAinterval = 60 - (mtNow.tv_sec - last_jeita_time.tv_sec);
+	if (nextJEITAinterval <= JEITA_MINIMUM_INTERVAL) {
+		smblib_asus_monitor_start(smbchg_dev, 0);
+		cancel_delayed_work(&smbchg_dev->asus_batt_RTC_work);
+	} else {
+		smblib_asus_monitor_start(smbchg_dev, nextJEITAinterval * 1000);
+		asus_smblib_relax(smbchg_dev);
+	}
+
+	return 0;
+}
+#endif
 
 static int smb2_remove(struct platform_device *pdev)
 {
@@ -2683,6 +2757,12 @@ static void smb2_shutdown(struct platform_device *pdev)
 				 AUTO_SRC_DETECT_BIT, AUTO_SRC_DETECT_BIT);
 }
 
+#ifdef CONFIG_MACH_ASUS_SDM660
+static const struct dev_pm_ops smb2_pm_ops = {
+	.resume		= smb2_resume,
+};
+#endif
+
 static const struct of_device_id match_table[] = {
 	{ .compatible = "qcom,qpnp-smb2", },
 	{ },
@@ -2692,6 +2772,9 @@ static struct platform_driver smb2_driver = {
 	.driver		= {
 		.name		= "qcom,qpnp-smb2",
 		.of_match_table	= match_table,
+#ifdef CONFIG_MACH_ASUS_SDM660
+		.pm		= &smb2_pm_ops,
+#endif
 	},
 	.probe		= smb2_probe,
 	.remove		= smb2_remove,

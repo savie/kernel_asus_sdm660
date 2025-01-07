@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2008-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #ifndef __ADRENO_H
 #define __ADRENO_H
@@ -207,6 +207,7 @@ enum adreno_gpurev {
 	ADRENO_REV_A505 = 505,
 	ADRENO_REV_A506 = 506,
 	ADRENO_REV_A508 = 508,
+	ADRENO_REV_A509 = 509,
 	ADRENO_REV_A510 = 510,
 	ADRENO_REV_A512 = 512,
 	ADRENO_REV_A530 = 530,
@@ -255,9 +256,6 @@ struct adreno_gpudev;
 /* Time to allow preemption to complete (in ms) */
 #define ADRENO_PREEMPT_TIMEOUT 10000
 
-#define PREEMPT_SCRATCH_ADDR(dev, id) \
-	((dev)->preempt.scratch.gpuaddr + (id * sizeof(u64)))
-
 #define ADRENO_INT_BIT(a, _bit) (((a)->gpucore->gpudev->int_bits) ? \
 		(adreno_get_int(a, _bit) < 0 ? 0 : \
 		BIT(adreno_get_int(a, _bit))) : 0)
@@ -284,26 +282,24 @@ enum adreno_preempt_states {
 /**
  * struct adreno_preemption
  * @state: The current state of preemption
- * @scratch: Memory descriptor for the memory where the GPU writes the
- * current ctxt record address and preemption counters on switch
+ * @counters: Memory descriptor for the memory where the GPU writes the
+ * preemption counters on switch
  * @timer: A timer to make sure preemption doesn't stall
  * @work: A work struct for the preemption worker (for 5XX)
  * preempt_level: The level of preemption (for 6XX)
  * skipsaverestore: To skip saverestore during L1 preemption (for 6XX)
  * usesgmem: enable GMEM save/restore across preemption (for 6XX)
  * count: Track the number of preemptions triggered
- * @postamble_len: Number of dwords in KMD postamble pm4 packet
  */
 struct adreno_preemption {
 	atomic_t state;
-	struct kgsl_memdesc scratch;
+	struct kgsl_memdesc counters;
 	struct timer_list timer;
 	struct work_struct work;
 	unsigned int preempt_level;
 	bool skipsaverestore;
 	bool usesgmem;
 	unsigned int count;
-	u32 postamble_len;
 };
 
 
@@ -435,7 +431,7 @@ enum gpu_coresight_sources {
  * @dispatcher: Container for adreno GPU dispatcher
  * @pwron_fixup: Command buffer to run a post-power collapse shader workaround
  * @pwron_fixup_dwords: Number of dwords in the command buffer
- * @input_work: Work struct for turning on the GPU after a touch event
+ * @pwr_on_work: Work struct for turning on the GPU
  * @busy_data: Struct holding GPU VBIF busy stats
  * @ram_cycles_lo: Number of DDR clock cycles for the monitor session (Only
  * DDR channel 0 read cycles in case of GBIF)
@@ -515,7 +511,7 @@ struct adreno_device {
 	struct adreno_dispatcher dispatcher;
 	struct kgsl_memdesc pwron_fixup;
 	unsigned int pwron_fixup_dwords;
-	struct work_struct input_work;
+	struct work_struct pwr_on_work;
 	struct adreno_busy_data busy_data;
 	unsigned int ram_cycles_lo;
 	unsigned int ram_cycles_lo_ch1_read;
@@ -908,7 +904,6 @@ struct adreno_gpudev {
 
 	struct adreno_irq *irq;
 	int num_prio_levels;
-	int cp_rb_cntl;
 	unsigned int vbif_xin_halt_ctrl0_mask;
 	unsigned int gbif_client_halt_mask;
 	unsigned int gbif_arb_halt_mask;
@@ -1055,7 +1050,6 @@ extern struct adreno_gpudev adreno_a5xx_gpudev;
 extern struct adreno_gpudev adreno_a6xx_gpudev;
 
 extern int adreno_wake_nice;
-extern unsigned int adreno_wake_timeout;
 
 int adreno_start(struct kgsl_device *device, int priority);
 int adreno_soft_reset(struct kgsl_device *device);
@@ -1138,7 +1132,6 @@ void adreno_rscc_regread(struct adreno_device *adreno_dev,
 		unsigned int offsetwords, unsigned int *value);
 void adreno_isense_regread(struct adreno_device *adreno_dev,
 		unsigned int offsetwords, unsigned int *value);
-u32 adreno_get_ucode_version(const u32 *data);
 
 
 #define ADRENO_TARGET(_name, _id) \
@@ -1167,6 +1160,7 @@ ADRENO_TARGET(a504, ADRENO_REV_A504)
 ADRENO_TARGET(a505, ADRENO_REV_A505)
 ADRENO_TARGET(a506, ADRENO_REV_A506)
 ADRENO_TARGET(a508, ADRENO_REV_A508)
+ADRENO_TARGET(a509, ADRENO_REV_A509)
 ADRENO_TARGET(a510, ADRENO_REV_A510)
 ADRENO_TARGET(a512, ADRENO_REV_A512)
 ADRENO_TARGET(a530, ADRENO_REV_A530)

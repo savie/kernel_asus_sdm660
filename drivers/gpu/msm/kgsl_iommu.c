@@ -1211,8 +1211,10 @@ static int _init_global_pt(struct kgsl_mmu *mmu, struct kgsl_pagetable *pt)
 		goto done;
 	}
 
-	if (kgsl_mmu_is_perprocess(mmu) && MMU_FEATURE(mmu,
-				KGSL_MMU_SMMU_APERTURE)) {
+	if (kgsl_mmu_is_perprocess(mmu) &&
+		MMU_FEATURE(mmu, KGSL_MMU_SMMU_APERTURE) &&
+		!of_machine_is_compatible("qcom,sdm636") &&
+		!of_machine_is_compatible("qcom,sdm660")) {
 		struct scm_desc desc = {0};
 
 		desc.args[0] = 0xFFFF0000 | ((CP_APERTURE_REG & 0xff) << 8) |
@@ -2586,19 +2588,18 @@ static bool kgsl_iommu_addr_in_range(struct kgsl_pagetable *pagetable,
 		uint64_t gpuaddr, uint64_t size)
 {
 	struct kgsl_iommu_pt *pt = pagetable->priv;
-	u64 end = gpuaddr + size;
 
-	/* Make sure we don't wrap around */
-	if (gpuaddr == 0 || end < gpuaddr)
+	if (gpuaddr == 0)
 		return false;
 
-	if (gpuaddr >= pt->va_start && end <= pt->va_end)
+	if (gpuaddr >= pt->va_start && (gpuaddr + size) < pt->va_end)
 		return true;
 
-	if (gpuaddr >= pt->compat_va_start && end <= pt->compat_va_end)
+	if (gpuaddr >= pt->compat_va_start &&
+				(gpuaddr + size) < pt->compat_va_end)
 		return true;
 
-	if (gpuaddr >= pt->svm_start && end <= pt->svm_end)
+	if (gpuaddr >= pt->svm_start && (gpuaddr + size) < pt->svm_end)
 		return true;
 
 	return false;

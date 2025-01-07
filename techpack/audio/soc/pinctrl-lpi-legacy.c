@@ -24,7 +24,7 @@
 
 #define LPI_AUTO_SUSPEND_DELAY          100 /* delay in msec */
 
-#define LPI_ADDRESS_SIZE			0x20000
+#define LPI_ADDRESS_SIZE			0xC000
 
 #define LPI_GPIO_REG_VAL_CTL			0x00
 #define LPI_GPIO_REG_DIR_CTL			0x04
@@ -790,7 +790,17 @@ static struct platform_driver lpi_pinctrl_driver = {
 	.remove = lpi_pinctrl_remove,
 };
 
-module_platform_driver(lpi_pinctrl_driver);
+static int __init lpi_init(void)
+{
+	return platform_driver_register(&lpi_pinctrl_driver);
+}
+late_initcall(lpi_init);
+
+static void __exit lpi_exit(void)
+{
+	platform_driver_unregister(&lpi_pinctrl_driver);
+}
+module_exit(lpi_exit);
 
 MODULE_DESCRIPTION("QTI LPI GPIO pin control driver");
 MODULE_LICENSE("GPL v2");
