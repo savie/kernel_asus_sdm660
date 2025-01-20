@@ -26,8 +26,6 @@
 
 #include <trace/events/power.h>
 
-extern unsigned int is_cpu_overclocked;
-
 struct memlat_node {
 	unsigned int ratio_ceil;
 	unsigned int stall_floor;
@@ -217,12 +215,10 @@ err_start:
 static int gov_suspend(struct devfreq *df)
 {
 	struct memlat_node *node = df->data;
-	struct memlat_hwmon *hw = node->hw;
 	unsigned long prev_freq = df->previous_freq;
 
 	node->mon_started = false;
-	if (!hw->should_ignore_df_monitor)
-		devfreq_monitor_suspend(df);
+	devfreq_monitor_suspend(df);
 
 	mutex_lock(&df->lock);
 	update_devfreq(df);
@@ -236,7 +232,6 @@ static int gov_suspend(struct devfreq *df)
 static int gov_resume(struct devfreq *df)
 {
 	struct memlat_node *node = df->data;
-	struct memlat_hwmon *hw = node->hw;
 
 	mutex_lock(&df->lock);
 	update_devfreq(df);
@@ -244,8 +239,7 @@ static int gov_resume(struct devfreq *df)
 
 	node->resume_freq = 0;
 
-	if (!hw->should_ignore_df_monitor)
-		devfreq_monitor_resume(df);
+	devfreq_monitor_resume(df);
 	node->mon_started = true;
 
 	return 0;
@@ -331,7 +325,7 @@ static int devfreq_memlat_get_freq(struct devfreq *df,
 	return 0;
 }
 
-gov_attr(ratio_ceil, 1U, 50000U);
+gov_attr(ratio_ceil, 1U, 20000U);
 gov_attr(stall_floor, 0U, 100U);
 gov_attr(wb_pct_thres, 0U, 100U);
 gov_attr(wb_filter_ratio, 0U, 50000U);
@@ -453,6 +447,9 @@ static struct core_dev_map *init_core_dev_map(struct device *dev,
 	struct core_dev_map *tbl;
 	int ret;
 
+	if (!of_node)
+		of_node = dev->of_node;
+
 	if (!of_find_property(of_node, prop_name, &len))
 		return NULL;
 	len /= sizeof(data);
@@ -490,7 +487,7 @@ static struct memlat_node *register_common(struct device *dev,
 					   struct memlat_hwmon *hw)
 {
 	struct memlat_node *node;
-	struct device_node *of_node = dev->of_node;
+	struct device_node *of_child;
 
 	if (!hw->dev && !hw->of_node)
 		return ERR_PTR(-EINVAL);
@@ -504,14 +501,14 @@ static struct memlat_node *register_common(struct device *dev,
 	node->wb_filter_ratio = 25000;
 	node->hw = hw;
 
-	if (hw->get_child_of_node)
-		of_node = hw->get_child_of_node(dev);
-
-	if ((is_cpu_overclocked < 1) && of_machine_is_compatible("qcom,sdm636"))
-		hw->freq_map = init_core_dev_map(dev, of_node, "qcom,core-dev-table-sts");
-	else
-		hw->freq_map = init_core_dev_map(dev, of_node, "qcom,core-dev-table");
-
+	if (hw->get_child_of_node) {
+		of_child = hw->get_child_of_node(dev);
+		hw->freq_map = init_core_dev_map(dev, of_child,
+					"qcom,core-dev-table");
+	} else {
+		hw->freq_map = init_core_dev_map(dev, NULL,
+					"qcom,core-dev-table");
+	}
 	if (!hw->freq_map) {
 		dev_err(dev, "Couldn't find the core-dev freq table!\n");
 		return ERR_PTR(-EINVAL);

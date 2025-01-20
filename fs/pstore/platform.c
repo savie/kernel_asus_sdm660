@@ -417,10 +417,6 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 		record.part = part;
 		record.buf = psinfo->buf;
 
-#ifdef CONFIG_MACH_ASUS_SDM660
-		big_oops_buf = NULL;
-#endif
-
 		if (big_oops_buf) {
 			dst = big_oops_buf;
 			dst_size = big_oops_buf_sz;
@@ -468,9 +464,6 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 
 static struct kmsg_dumper pstore_dumper = {
 	.dump = pstore_dump,
-#ifdef CONFIG_MACH_ASUS_SDM660
-	.name = "pstore_ramoops",
-#endif
 };
 
 /*

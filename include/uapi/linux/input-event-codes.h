@@ -610,16 +610,6 @@
 #define KEY_BRIGHTNESS_MIN		0x250	/* Set Brightness to Minimum */
 #define KEY_BRIGHTNESS_MAX		0x251	/* Set Brightness to Maximum */
 
-#ifdef CONFIG_MACH_ASUS_SDM660
-#define FP_KEY_UP		0x258
-#define FP_KEY_DOWN		0x259
-#define FP_KEY_LEFT		0x25a
-#define FP_KEY_RIGHT		0x25b
-#define FP_KEY_CLICK		0x25c
-#define FP_KEY_DOUBLE_CLICK	0x25d
-#define FP_KEY_LONG_PRESS	0x25e
-#endif
-
 #define KEY_KBDINPUTASSIST_PREV		0x260
 #define KEY_KBDINPUTASSIST_NEXT		0x261
 #define KEY_KBDINPUTASSIST_PREVGROUP		0x262
@@ -701,36 +691,6 @@
 #define BTN_TRIGGER_HAPPY39		0x2e6
 #define BTN_TRIGGER_HAPPY40		0x2e7
 
-#ifdef CONFIG_MACH_ASUS_X01BD
-#define KEY_TP_GESTURE_C		748
-#define KEY_TP_GESTURE_E		749
-#define KEY_TP_GESTURE_M		750
-#define KEY_TP_GESTURE_O		751
-#define KEY_TP_GESTURE_S		752
-#define KEY_TP_GESTURE_V		753
-#define KEY_TP_GESTURE_W		754
-#define KEY_TP_GESTURE_Z		755
-#define KEY_TP_GESTURE_SWIPE_UP		756
-#define KEY_TP_GESTURE_SWIPE_DOWN	757
-#define KEY_TP_GESTURE_SWIPE_LEFT	758
-#define KEY_TP_GESTURE_SWIPE_RIGHT	759
-#endif
-
-#ifdef CONFIG_MACH_ASUS_X00TD
-#define KEY_SARSENSOR_NEAR		0x2ea
-#define KEY_SARSENSOR_FAR		0x2eb
-
-#if defined(CONFIG_TOUCHSCREEN_NT36xxx_X00TD) || defined(CONFIG_TOUCHSCREEN_SYNAPTICS_DSX_X00TD)
-#define KEY_TP_GESTURE_W		253
-#define KEY_TP_GESTURE_E		250
-#define KEY_TP_GESTURE_S		251
-#define KEY_TP_GESTURE_Z		254
-#define KEY_TP_GESTURE_C		249
-#define KEY_TP_GESTURE_V		252
-#define KEY_TP_GESTURE_SWIPE_UP		255
-#endif
-#endif
-
 /* We avoid low common keys in module aliases so they don't get huge. */
 #define KEY_MIN_INTERESTING	KEY_MUTE
 #define KEY_MAX			0x2ff
@@ -786,7 +746,6 @@
 
 #define ABS_MISC		0x28
 
-#ifndef CONFIG_MACH_ASUS_X00TD
 /*
  * 0x2e is reserved and should not be used in input drivers.
  * It was used by HID as ABS_MISC+6 and userspace needs to detect if
@@ -795,7 +754,6 @@
  * the situation described above.
  */
 #define ABS_RESERVED		0x2e
-#endif
 
 #define ABS_MT_SLOT		0x2f	/* MT slot being modified */
 #define ABS_MT_TOUCH_MAJOR	0x30	/* Major axis of touching ellipse */

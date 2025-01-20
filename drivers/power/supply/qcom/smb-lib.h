@@ -13,8 +13,6 @@
 #include "storm-watch.h"
 #include "battery.h"
 
-#include "qcom_power_macros.h"
-
 enum print_reason {
 	PR_INTERRUPT	= BIT(0),
 	PR_REGISTER	= BIT(1),
@@ -47,7 +45,7 @@ enum print_reason {
 #define USBIN_USBIN_BOOST_VOTER		"USBIN_USBIN_BOOST_VOTER"
 #define HVDCP_INDIRECT_VOTER		"HVDCP_INDIRECT_VOTER"
 #define MICRO_USB_VOTER			"MICRO_USB_VOTER"
-//#define DEBUG_BOARD_VOTER		"DEBUG_BOARD_VOTER"
+#define DEBUG_BOARD_VOTER		"DEBUG_BOARD_VOTER"
 #define PD_SUSPEND_SUPPORTED_VOTER	"PD_SUSPEND_SUPPORTED_VOTER"
 #define PL_DELAY_VOTER			"PL_DELAY_VOTER"
 #define CTM_VOTER			"CTM_VOTER"
@@ -66,7 +64,7 @@ enum print_reason {
 #define MOISTURE_VOTER			"MOISTURE_VOTER"
 #define HVDCP2_ICL_VOTER		"HVDCP2_ICL_VOTER"
 #define OV_VOTER			"OV_VOTER"
-//#define FG_ESR_VOTER			"FG_ESR_VOTER" 
+#define FG_ESR_VOTER			"FG_ESR_VOTER"
 #define FCC_STEPPER_VOTER		"FCC_STEPPER_VOTER"
 #define PD_NOT_SUPPORTED_VOTER		"PD_NOT_SUPPORTED_VOTER"
 
@@ -312,13 +310,6 @@ struct smb_charger {
 	struct work_struct	legacy_detection_work;
 	struct delayed_work	uusb_otg_work;
 	struct delayed_work	bb_removal_work;
-#ifdef CONFIG_MACH_ASUS_SDM660
-	struct delayed_work	asus_chg_flow_work;
-	struct delayed_work	asus_adapter_adc_work;
-	struct delayed_work	asus_min_monitor_work;
-	struct delayed_work	asus_batt_RTC_work;
-	struct iio_channel	*gpio12_vadc_chan;
-#endif
 
 	/* cached status */
 	int			voltage_min_uv;
@@ -388,13 +379,6 @@ struct smb_charger {
 
 	int			die_health;
 };
-
-#ifdef CONFIG_MACH_ASUS_SDM660
-struct gpio_control {
-	u32 ADC_SW_EN;
-	u32 ADCPWREN_PMI_GP1;
-};
-#endif
 
 int smblib_read(struct smb_charger *chg, u16 addr, u8 *val);
 int smblib_masked_write(struct smb_charger *chg, u16 addr, u8 mask, u8 val);

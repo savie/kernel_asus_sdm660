@@ -430,7 +430,7 @@ struct rpmsg_device_id {
 
 /* i2c */
 
-#define I2C_NAME_SIZE	32
+#define I2C_NAME_SIZE	20
 #define I2C_MODULE_PREFIX "i2c:"
 
 struct i2c_device_id {
